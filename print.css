@@ -1,0 +1,101 @@
+/**
+ * Print Styles for Concrete Pavement Recommendation System
+ */
+
+@media print {
+    /* Hide non-essential elements */
+    .main-header,
+    .sidebar,
+    .sidebar-overlay,
+    .footer,
+    .parameter-card,
+    #pavementForm button,
+    .header-actions,
+    .hamburger-btn {
+        display: none !important;
+    }
+    
+    /* Ensure the content takes full width */
+    .content-wrapper {
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+    }
+    
+    /* Ensure the result section is displayed */
+    #resultSection {
+        display: block !important;
+        page-break-inside: avoid;
+        margin: 0 !important;
+        padding: 0 !important;
+        box-shadow: none !important;
+    }
+    
+    /* Add a title for the print version */
+    body::before {
+        content: "Concrete Pavement Recommendation Report";
+        display: block;
+        font-size: 20pt;
+        font-weight: bold;
+        margin-bottom: 20px;
+        text-align: center;
+    }
+    
+    /* Format the recommendation section for better printing */
+    .recommendation-card {
+        border: 1px solid #ccc !important;
+        padding: 15px !important;
+        margin-top: 20px !important;
+        page-break-inside: avoid;
+    }
+    
+    /* Ensure text is black for better printing */
+    body {
+        color: #000 !important;
+        background: #fff !important;
+        font-size: 12pt;
+        line-height: 1.5;
+    }
+    
+    /* Format headings */
+    h1, h2, h3, h4, h5, h6 {
+        color: #000 !important;
+        margin-top: 20px !important;
+    }
+    
+    /* Format list items in recommendations */
+    .list-group-item {
+        border-color: #ccc !important;
+        color: #000 !important;
+        page-break-inside: avoid;
+    }
+    
+    /* Format badges in recommendations */
+    .badge {
+        border: 1px solid #000 !important;
+        color: #000 !important;
+        background: none !important;
+    }
+    
+    /* Format alerts */
+    .alert {
+        border: 1px solid #ccc !important;
+        background: none !important;
+        color: #000 !important;
+    }
+    
+    /* Hide any background images */
+    * {
+        background-image: none !important;
+    }
+    
+    /* Add page breaks where appropriate */
+    h2, h3 {
+        page-break-after: avoid;
+    }
+    
+    /* Don't print URLs for links */
+    a[href]::after {
+        content: "";
+    }
+} 

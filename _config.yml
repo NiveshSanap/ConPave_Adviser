@@ -1,0 +1,15 @@
+# GitHub Pages Configuration
+name: Concrete Pavement Recommender
+title: ConPave Adviser - IRC-Based Pavement Recommendation
+description: An intelligent decision support tool for selecting concrete pavement types based on IRC standards
+
+# Disable Jekyll processing - this ensures all files are accessible
+markdown: kramdown
+
+# Allow JS files to be loaded correctly
+include:
+  - assets
+  - .nojekyll
+
+# Base URL settings (automatically handled by GitHub Pages)
+baseurl: "" 

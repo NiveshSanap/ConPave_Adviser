@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ConPave Adviser - IRC-Based Pavement Recommendation</title>
+    <!-- Base URL for GitHub Pages -->
+    <base href="./">
+    <!-- Emergency path fixer - loads before any other scripts -->
+    <script src="assets/js/path-fixer.js"></script>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.3/font/bootstrap-icons.css">
+    <!-- Chart.js for data visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- jsPDF for improved PDF export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- Favicon -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛣️</text></svg>">
+    
+    <style>
+        :root {
+            --primary-color: #2a6cc2;
+            --secondary-color: #0d98ba;
+            --accent-color: #ffb100;
+            --text-light: #ffffff;
+            --text-dark: #212529;
+            --bg-light: #f8f9fa;
+            --card-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        [data-bs-theme="dark"] {
+            --primary-color: #3a7cd2;
+            --secondary-color: #1da8ca;
+            --accent-color: #ffb100;
+            --text-light: #ffffff;
+            --text-dark: #f8f9fa;
+            --bg-light: #343a40;
+            --card-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        
+        body {
+            background-color: var(--bg-light);
+            transition: all 0.3s ease;
+        }
+        .container {
+            max-width: 1200px;
+        }
+        .header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: var(--text-light);
+            padding: 1.5rem 0;
+            border-radius: 0 0 10px 10px;
+            margin-bottom: 2rem;
+            box-shadow: var(--card-shadow);
+        }
+        .form-section, .recommendation-card {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: var(--card-shadow);
+            transition: all 0.3s ease;
+        }
+        [data-bs-theme="dark"] .form-section, 
+        [data-bs-theme="dark"] .recommendation-card {
+            background-color: #2b3035;
+            color: var(--text-light);
+        }
+        .form-label {
+            font-weight: 500;
+        }
+        .progress {
+            height: 8px;
+        }
+        .recommendation-summary {
+            background-color: var(--bg-light);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 1rem;
+        }
+        .recommendation-detail {
+            margin-top: 1rem;
+        }
+        .reference-section {
+            margin-top: 2rem;
+            padding-top: 1rem;
+            border-top: 1px solid #dee2e6;
+        }
+        .card {
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            border: none;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 15px rgba(0,0,0,0.1);
+        }
+        .btn-primary {
+            background: var(--primary-color);
+            border-color: var(--primary-color);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .btn-primary:hover {
+            background: var(--secondary-color);
+            border-color: var(--secondary-color);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            transform: translateY(-1px);
+        }
+        .btn:active {
+            transform: translateY(0);
+        }
+        .logo-text {
+            font-weight: 700;
+            background: -webkit-linear-gradient(45deg, #ffffff, #e0f0ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .badge {
+            font-weight: 500;
+        }
+        .version-badge {
+            background-color: rgba(255,255,255,0.2);
+            color: white;
+            font-size: 0.7rem;
+            padding: 0.2rem 0.5rem;
+            border-radius: 1rem;
+            margin-left: 0.5rem;
+            vertical-align: middle;
+        }
+        .theme-toggle {
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 50px;
+            background-color: rgba(255,255,255,0.2);
+            display: inline-flex;
+            align-items: center;
+        }
+        .floating-help {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 100;
+            background-color: var(--primary-color);
+            color: white;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .floating-help:hover {
+            transform: scale(1.1);
+        }
+        /* Print styles */
+        @media print {
+            body {
+                background-color: white;
+            }
+            .header, .form-section, .no-print {
+                display: none !important;
+            }
+            .container {
+                width: 100%;
+                max-width: 100%;
+            }
+            .recommendation-card {
+                box-shadow: none;
+                border: 1px solid #dee2e6;
+            }
+            .accordion-button::after {
+                display: none;
+            }
+            .accordion-collapse {
+                display: block !important;
+            }
+            .accordion-button {
+                padding: 0.5rem;
+                background-color: #f8f9fa !important;
+                color: #212529 !important;
+                box-shadow: none !important;
+            }
+        }
+        .form-floating>label {
+            padding-top: 0.625rem;
+        }
+        /* Toast notification styling */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1050;
+        }
+        /* Form styling enhancements */
+        .form-select, .form-control {
+            border-radius: 6px;
+            padding: 0.6rem 0.75rem;
+            transition: all 0.3s ease;
+            border-color: #dee2e6;
+        }
+        .form-select:focus, .form-control:focus {
+            box-shadow: 0 0 0 3px rgba(42, 108, 194, 0.15);
+            border-color: var(--primary-color);
+        }
+        .form-select.is-valid, .form-control.is-valid {
+            border-color: #28a745;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 8 8'%3e%3cpath fill='%2328a745' d='M2.3 6.73L.6 4.53c-.4-1.04.46-1.4 1.1-.8l1.1 1.4 3.4-3.8c.6-.63 1.6-.27 1.2.7l-4 4.6c-.43.5-.8.4-1.1.1z'/%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right calc(0.375em + 0.1875rem) center;
+            background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
+        }
+        
+        /* Form progress animation */
+        .form-progress .progress-bar {
+            transition: width 0.5s ease;
+        }
+        
+        /* Button enhancements */
+        .btn {
+            border-radius: 6px;
+            padding: 0.5rem 1rem;
+            transition: all 0.2s ease;
+            font-weight: 500;
+        }
+        .btn-primary {
+            background: var(--primary-color);
+            border-color: var(--primary-color);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .btn-primary:hover {
+            background: var(--secondary-color);
+            border-color: var(--secondary-color);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            transform: translateY(-1px);
+        }
+        .btn:active {
+            transform: translateY(0);
+        }
+        
+        /* Submit button pulse animation */
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(42, 108, 194, 0.7);
+            }
+            70% {
+                box-shadow: 0 0 0 10px rgba(42, 108, 194, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(42, 108, 194, 0);
+            }
+        }
+        
+        .btn-pulse {
+            animation: pulse 1.5s infinite;
+        }
+        
+        .recommendation-card {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: var(--card-shadow);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        [data-bs-theme="dark"] .recommendation-card {
+            background-color: #2b3035;
+            color: var(--text-light);
+        }
+        
+        .recommendation-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 300px;
+            height: 300px;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Cpath fill='%232a6cc2' fill-opacity='0.05' d='M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-43-7c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm63 31c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM34 90c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm56-76c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM12 86c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm28-65c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm23-11c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-6 60c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm29 22c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zM32 63c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm57-13c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-9-21c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM60 91c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM35 41c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM12 60c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2z'%3E%3C/path%3E%3C/svg%3E");
+            opacity: 0.5;
+            z-index: 0;
+        }
+        
+        [data-bs-theme="dark"] .recommendation-card::before {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Cpath fill='%233a7cd2' fill-opacity='0.1' d='M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-43-7c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm63 31c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM34 90c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm56-76c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM12 86c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm28-65c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm23-11c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-6 60c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm29 22c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zM32 63c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm57-13c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-9-21c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM60 91c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM35 41c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM12 60c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2z'%3E%3C/path%3E%3C/svg%3E");
+        }
+        
+        .recommendation-card > * {
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Probability results animation */
+        .probability-results {
+            transition: all 0.3s ease-in-out;
+            opacity: 1;
+        }
+
+        .probability-results.fade-out {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+    <div class="container">
+            <div class="row align-items-center">
+                <div class="col-md-7">
+                    <h1 class="mb-0"><i class="bi bi-layers me-2"></i><span class="logo-text">ConPave Adviser</span><span class="version-badge">v3.5</span></h1>
+                    <p class="mb-0 mt-1">Intelligent IRC-Based Concrete Pavement Recommendation System</p>
+                </div>
+                <div class="col-md-5 text-md-end">
+                    <div class="text-white-50 small">
+                        <i class="bi bi-book me-1"></i> Based on IRC:58-2015, IRC:118-2015, IRC:SP:62-2014, IRC:SP:140-2024
+                    </div>
+                    <div class="mt-2">
+                        <span class="theme-toggle" id="themeToggle">
+                            <i class="bi bi-moon-stars"></i> <span class="ms-1 small">Dark Mode</span>
+                        </span>
+                        <button id="debugButton" class="btn btn-sm btn-light ms-2" style="font-size: 0.8rem;">Test Reference Table</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+                            </div>
+                            
+    <!-- Toast container for notifications -->
+    <div class="toast-container"></div>
+    
+    <!-- Floating help button -->
+    <div class="floating-help" data-bs-toggle="modal" data-bs-target="#helpModal">
+        <i class="bi bi-question-lg"></i>
+                            </div>
+                            
+    <!-- Help Modal -->
+    <div class="modal fade" id="helpModal" tabindex="-1" aria-labelledby="helpModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="helpModalLabel">ConPave Adviser Help</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                <div class="modal-body">
+                    <h5><i class="bi bi-info-circle text-primary me-2"></i>About ConPave Adviser</h5>
+                    <p>ConPave Adviser is an intelligent decision support system for concrete pavement design based on Indian Roads Congress (IRC) standards. This tool helps civil engineers and road construction professionals select the most appropriate concrete pavement type based on project requirements.</p>
+                    
+                    <h5 class="mt-4"><i class="bi bi-question-circle text-primary me-2"></i>How to Use</h5>
+                    <ol>
+                        <li>Fill in all required input parameters in the form</li>
+                        <li>Click "Generate Recommendation" to receive tailored pavement advice</li>
+                        <li>Review the detailed recommendation including material specifications, construction guidelines, and lifecycle cost analysis</li>
+                        <li>Use the "Export to PDF" button to save and share your results</li>
+                    </ol>
+                    
+                    <h5 class="mt-4"><i class="bi bi-key text-primary me-2"></i>Key Features</h5>
+                    <ul>
+                        <li><strong>IRC Standard Compliance:</strong> All recommendations follow the latest IRC guidelines</li>
+                        <li><strong>Lifecycle Cost Analysis:</strong> Compare initial and long-term costs</li>
+                        <li><strong>Construction Guidelines:</strong> Detailed specifications for materials and methods</li>
+                        <li><strong>Environmental Considerations:</strong> Factors in climate and drainage requirements</li>
+                    </ul>
+                    
+                    <div class="alert alert-info mt-4">
+                        <i class="bi bi-lightbulb me-2"></i> <strong>Tip:</strong> For the most accurate recommendations, ensure all input parameters are correctly specified for your project conditions.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+                            </div>
+                            
+    <div class="container mb-5">
+        <div class="row g-4">
+            <div class="col-lg-4">
+                <div class="form-section p-4">
+                    <h4 class="mb-3"><i class="bi bi-sliders me-2"></i>Input Parameters</h4>
+                    <p class="text-muted small mb-3">Enter project requirements below to get data-driven recommendations</p>
+                    
+                    <!-- Form Progress Indicator -->
+                    <div class="form-progress mb-4">
+                        <div class="progress" style="height: 6px;">
+                            <div class="progress-bar bg-primary" id="formProgressBar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                        <div class="d-flex justify-content-between mt-1">
+                            <small class="text-muted">0/10 Fields</small>
+                            <small class="text-muted">Form Completion</small>
+                            </div>
+                            </div>
+                            
+                    <form id="pavementForm">
+                        <div class="mb-3">
+                            <label for="trafficVolume" class="form-label" data-bs-toggle="tooltip" data-bs-placement="top" title="Average daily number of commercial vehicles that will use the pavement">Daily Traffic Volume <i class="bi bi-info-circle-fill text-primary small"></i></label>
+                            <select class="form-select" id="trafficVolume" required>
+                                <option value="" selected disabled>Select traffic volume...</option>
+                                <option value="1">&lt; 450 CVPD (Rural/Low Volume)</option>
+                                <option value="2">450-2000 CVPD (Medium Volume)</option>
+                                <option value="3">&gt; 2000 CVPD (High Volume)</option>
+                                <option value="4">Very High Commercial Traffic</option>
+                                </select>
+                            <div class="form-text small">Commercial vehicles per day</div>
+                            </div>
+                            
+                        <div class="mb-3">
+                            <label for="designLife" class="form-label" data-bs-toggle="tooltip" data-bs-placement="top" title="Expected service life before major rehabilitation is required">Expected Pavement Life <i class="bi bi-info-circle-fill text-primary small"></i></label>
+                            <select class="form-select" id="designLife" required>
+                                <option value="" selected disabled>Select design life...</option>
+                                <option value="10">10 years</option>
+                                <option value="20">20 years</option>
+                                <option value="30">30 years</option>
+                                <option value="40">40 years</option>
+                                </select>
+                            <div class="form-text small">Design service life</div>
+                            </div>
+                            
+                        <div class="mb-3">
+                            <label for="subgradeCBR" class="form-label" data-bs-toggle="tooltip" data-bs-placement="top" title="California Bearing Ratio indicates the strength of the underlying soil">Subgrade CBR <i class="bi bi-info-circle-fill text-primary small"></i></label>
+                            <select class="form-select" id="subgradeCBR" required>
+                                <option value="" selected disabled>Select subgrade CBR...</option>
+                                <option value="1">&lt; 3%</option>
+                                <option value="2">3-5%</option>
+                                <option value="3">6-7%</option>
+                                <option value="4">≥ 8%</option>
+                                </select>
+                            <div class="form-text small">California Bearing Ratio</div>
+                            </div>
+                            
+                        <div class="mb-3">
+                            <label for="slabThickness" class="form-label" data-bs-toggle="tooltip" data-bs-placement="top" title="Maximum allowable thickness for the concrete slab based on project constraints">Maximum Slab Thickness <i class="bi bi-info-circle-fill text-primary small"></i></label>
+                            <select class="form-select" id="slabThickness" required>
+                                <option value="" selected disabled>Select max thickness...</option>
+                                <option value="150">150 mm</option>
+                                <option value="200">200 mm</option>
+                                <option value="250">250 mm</option>
+                                <option value="300">300 mm</option>
+                                </select>
+                            <div class="form-text small">Maximum allowable thickness</div>
+                            </div>
+                            
+                        <div class="mb-3">
+                            <label for="longitudinalJoints" class="form-label" data-bs-toggle="tooltip" data-bs-placement="top" title="Width of the pavement determines the need for longitudinal joints">Pavement Width <i class="bi bi-info-circle-fill text-primary small"></i></label>
+                            <select class="form-select" id="longitudinalJoints" required>
+                                <option value="" selected disabled>Select width consideration...</option>
+                                <option value="NotRequired">Narrow width (≤ 4.5m)</option>
+                                <option value="Width4.5">Medium width (4.5-7m)</option>
+                                <option value="Width7">Wide (> 7m)</option>
+                                </select>
+                            <div class="form-text small">Affects longitudinal joint requirements</div>
+                            </div>
+                            
+                        <div class="mb-3">
+                            <label for="marineEnvironment" class="form-label" data-bs-toggle="tooltip" data-bs-placement="top" title="Indicates if the pavement will be exposed to salt water or corrosive conditions">Marine/Corrosive Environment <i class="bi bi-info-circle-fill text-primary small"></i></label>
+                            <select class="form-select" id="marineEnvironment" required>
+                                <option value="" selected disabled>Select...</option>
+                                    <option value="Yes">Yes</option>
+                                <option value="No">No</option>
+                                </select>
+                            <div class="form-text small">Coastal areas or chemical exposure</div>
+                            </div>
+                            
+                        <div class="mb-3">
+                            <label for="utilityLines" class="form-label" data-bs-toggle="tooltip" data-bs-placement="top" title="Presence of underground utility lines that may require future access">Many Utility Lines Under Pavement <i class="bi bi-info-circle-fill text-primary small"></i></label>
+                            <select class="form-select" id="utilityLines" required>
+                                <option value="" selected disabled>Select...</option>
+                                <option value="Yes">Yes</option>
+                                <option value="No">No</option>
+                                </select>
+                            <div class="form-text small">Underground services requiring access</div>
+                            </div>
+                            
+                        <div class="mb-3">
+                            <label for="manualConstruction" class="form-label" data-bs-toggle="tooltip" data-bs-placement="top" title="Indicates if the construction will be done with limited mechanical equipment">Manual Construction Possible <i class="bi bi-info-circle-fill text-primary small"></i></label>
+                            <select class="form-select" id="manualConstruction" required>
+                                <option value="" selected disabled>Select...</option>
+                                <option value="Yes">Yes</option>
+                                <option value="No">No</option>
+                                </select>
+                            <div class="form-text small">Limited mechanized equipment available</div>
+                            </div>
+                            
+                        <div class="mb-3">
+                            <label for="initialCost" class="form-label" data-bs-toggle="tooltip" data-bs-placement="top" title="Level of budget constraints for the project">Budget Level <i class="bi bi-info-circle-fill text-primary small"></i></label>
+                            <select class="form-select" id="initialCost">
+                                <option value="" selected disabled>Select budget level...</option>
+                                <option value="Low">Low (Cost-sensitive)</option>
+                                <option value="Moderate">Moderate</option>
+                                <option value="High">High (Performance-focused)</option>
+                                </select>
+                            <div class="form-text small">Project budget constraints</div>
+                            </div>
+                            
+                        <div class="mb-3">
+                            <label for="constructionTime" class="form-label" data-bs-toggle="tooltip" data-bs-placement="top" title="Indicates if there are time constraints for pavement construction">Construction Time Constraint <i class="bi bi-info-circle-fill text-primary small"></i></label>
+                            <select class="form-select" id="constructionTime" required>
+                                <option value="" selected disabled>Select time constraint...</option>
+                                <option value="Limited">Limited (Rapid construction needed)</option>
+                                <option value="Normal">Normal (Standard construction timeline)</option>
+                                <option value="Flexible">Flexible (No time constraint)</option>
+                                </select>
+                            <div class="form-text small">Available time for construction</div>
+                        </div>
+                        
+                        <div class="d-grid mt-4">
+                            <button type="submit" id="generateBtn" class="btn btn-primary">
+                                <i class="bi bi-lightning-fill me-2"></i>Generate Recommendation
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                
+                <div class="card mt-3 p-3">
+                    <h5 class="fw-bold mb-2"><i class="bi bi-info-circle me-2 text-primary"></i>About ConPave</h5>
+                    <p class="small mb-0">ConPave Adviser is a data-driven tool that helps engineers determine optimal concrete pavement solutions using machine learning algorithms based on IRC standards.</p>
+                </div>
+            </div>
+
+            <div class="col-lg-8">
+                <!-- Loading Indicator -->
+                <div id="loadingIndicator" class="d-none">
+                    <div class="card shadow-sm p-4 text-center">
+                        <div class="py-4">
+                            <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                            <h5 class="mt-3">Analyzing Parameters...</h5>
+                            <p class="text-muted">Please wait while we process your inputs according to IRC standards</p>
+                            
+                            <div class="progress mt-3" style="height: 6px;">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 100%"></div>
+                    </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Recommendation Section -->
+                <div id="recommendationSection" class="recommendation-card p-4 d-none">
+                    <!-- Content will be dynamically generated by JavaScript -->
+                </div>
+                
+                <div class="reference-section mt-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>IRC Parameter Reference</h5>
+                        <div>
+                            <button class="btn btn-sm btn-outline-primary me-2" id="calculateProbabilitiesBtn">
+                                <i class="bi bi-graph-up me-2"></i>Calculate Type Probabilities
+                            </button>
+                            <button class="btn btn-sm btn-outline-secondary" id="toggleReferenceBtn">
+                                <i class="bi bi-eye me-2"></i>Show Reference Table
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="table-responsive" style="display: none;">
+                        <table class="table table-striped table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Parameter</th>
+                                    <th>JPCP</th>
+                                    <th>JRCP</th>
+                                    <th>CRCP</th>
+                                    <th>PCP</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Traffic Volume</td>
+                                    <td>≥450 CVPD highways/expressways</td>
+                                    <td>≥450 CVPD highways/expressways</td>
+                                    <td>Very high volume of commercial traffic</td>
+                                    <td>&#60;450 CVPD (rural), high volume (expwy)</td>
+                                </tr>
+                                <tr>
+                                    <td>Design Life</td>
+                                    <td>20 years</td>
+                                    <td>20 years</td>
+                                    <td>30-40 years</td>
+                                    <td>10-20 years (rural), 20-30 years (expwy)</td>
+                                </tr>
+                                <tr>
+                                    <td>Subgrade CBR</td>
+                                    <td>≥6%</td>
+                                    <td>≥6%</td>
+                                    <td>High strength recommended, ≥6%</td>
+                                    <td>≥3% (rural), ≥5% (expwy)</td>
+                                </tr>
+                                <tr>
+                                    <td>Slab Thickness</td>
+                                    <td>≥200 mm</td>
+                                    <td>≥200 mm</td>
+                                    <td>No reduction in thickness is desirable</td>
+                                    <td>≥150 mm (rural), ≥200 mm (expwy)</td>
+                                </tr>
+                                <tr>
+                                    <td>Longitudinal Steel</td>
+                                    <td>None (except at joints)</td>
+                                    <td>At joints and along slab length</td>
+                                    <td>0.65-0.80% of area</td>
+                                    <td>Not applicable</td>
+                                </tr>
+                                <tr>
+                                    <td>Transverse Joints</td>
+                                    <td>At regular intervals</td>
+                                    <td>At longer intervals than JPCP</td>
+                                    <td>None</td>
+                                    <td>As per design</td>
+                                </tr>
+                                <tr>
+                                    <td>Maintenance</td>
+                                    <td>Low</td>
+                                    <td>Low</td>
+                                    <td>Minimal (no joint seals except longitudinal)</td>
+                                    <td>Moderate (rural), Low (expwy)</td>
+                                </tr>
+                                <tr>
+                                    <td>Initial Cost</td>
+                                    <td>High</td>
+                                    <td>High</td>
+                                    <td>Higher (but lower life cycle cost)</td>
+                                    <td>Moderate (rural), High (expwy)</td>
+                                </tr>
+                                <tr>
+                                    <td>Marine Environment</td>
+                                    <td>Compatible</td>
+                                    <td>Compatible</td>
+                                    <td>Avoid unless epoxy/galvanized steel used</td>
+                                    <td>Compatible</td>
+                                </tr>
+                                <tr>
+                                    <td>Utility Lines</td>
+                                    <td>Compatible</td>
+                                    <td>Compatible</td>
+                                    <td>Avoid</td>
+                                    <td>Compatible</td>
+                                </tr>
+                                <tr>
+                                    <td>Manual Construction</td>
+                                    <td>Compatible</td>
+                                    <td>Compatible</td>
+                                    <td>Avoid</td>
+                                    <td>Compatible</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                </div>
+            </div>
+        </div>
+        
+    <footer class="bg-dark text-white py-4 mt-5">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-6">
+                    <h5><i class="bi bi-layers me-2"></i>ConPave Adviser</h5>
+                    <p class="small">This data-driven tool provides concrete pavement recommendations based on Indian Roads Congress standards. All recommendations should be verified by qualified engineers.</p>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <p class="mb-0">Based on IRC:58-2015, IRC:118-2015, IRC:SP:62-2014, IRC:SP:140-2024</p>
+                    <p class="small text-muted mb-0">© 2023 ConPave Adviser - v3.5.0</p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Custom Scripts - Load in correct dependency order -->
+    <script src="assets/js/scoring.js"></script>
+    <script src="assets/js/recommendations.js"></script>
+    <script src="assets/js/training.js"></script>
+    <script src="assets/js/main.js"></script>
+    <script src="assets/js/probability_calculator.js"></script>
+    <script src="assets/js/probability_display.js"></script>
+    <script src="assets/js/admin_panel.js"></script>
+    <!-- Load conpave.js last as it depends on other scripts -->
+    <script src="assets/js/conpave.js"></script>
+    
+    <!-- GitHub Pages Fix Script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check if the window.pavementRecommendations object is defined
+            // If not, there might be a problem with script loading
+            setTimeout(function() {
+                if (!window.pavementRecommendations || !window.pavementTrainingSystem) {
+                    console.error('Critical script objects not found. Attempting to reload scripts...');
+                    const scriptPaths = [
+                        'assets/js/recommendations.js',
+                        'assets/js/training.js',
+                        'assets/js/main.js'
+                    ];
+                    
+                    // Try to reload the scripts in order
+                    function loadScriptSequentially(index) {
+                        if (index >= scriptPaths.length) return;
+                        
+                        const script = document.createElement('script');
+                        script.src = scriptPaths[index];
+                        script.onload = function() {
+                            loadScriptSequentially(index + 1);
+                        };
+                        document.body.appendChild(script);
+                    }
+                    
+                    loadScriptSequentially(0);
+                }
+            }, 1000); // Check after 1 second
+        });
+    </script>
+    
+    <!-- Final Fallback -->
+    <script>
+        window.addEventListener('load', function() {
+            setTimeout(function() {
+                if (!window.pavementRecommendations || !window.pavementTrainingSystem) {
+                    console.error('EMERGENCY: Still missing critical objects after initial load');
+                    
+                    // Get the correct base URL for GitHub Pages
+                    const baseUrl = window.location.pathname.includes('github.io') ? 
+                        window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1) : 
+                        './';
+                    
+                    // Force reload all critical scripts with absolute paths
+                    [
+                        'scoring.js', 
+                        'recommendations.js', 
+                        'training.js', 
+                        'main.js',
+                        'conpave.js'
+                    ].forEach(function(file) {
+                        const script = document.createElement('script');
+                        script.src = baseUrl + 'assets/js/' + file + '?nocache=' + new Date().getTime();
+                        script.async = false;
+                        document.body.appendChild(script);
+                        console.log('Emergency loading: ' + script.src);
+                    });
+                    
+                    // Add an alert for the user
+                    const alertDiv = document.createElement('div');
+                    alertDiv.className = 'alert alert-warning m-3';
+                    alertDiv.innerHTML = `
+                        <strong>Loading Issue Detected</strong><br>
+                        We're fixing it automatically. Please wait a moment, then try again.<br>
+                        <button class="btn btn-sm btn-primary mt-2" onclick="location.reload()">Reload Page</button>
+                    `;
+                    document.body.prepend(alertDiv);
+                }
+            }, 2000); // Check after 2 seconds
+        });
+    </script>
+</body>
+</html> 

@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ConPave Adviser - Debug Page</title>
+    <base href="./">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .log-entry {
+            font-family: monospace;
+            padding: 4px;
+            margin: 2px 0;
+            border-radius: 4px;
+        }
+        .log-entry.error { background-color: #ffdddd; }
+        .log-entry.warning { background-color: #ffffdd; }
+        .log-entry.success { background-color: #ddffdd; }
+        .log-entry.info { background-color: #ddddff; }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <h1>ConPave Adviser Debug Page</h1>
+        <p class="lead">This page checks if all required scripts are loading correctly.</p>
+        
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Script Status</h5>
+                <button id="reloadBtn" class="btn btn-primary btn-sm">Reload Page</button>
+            </div>
+            <div class="card-body">
+                <div id="scriptStatus">Loading...</div>
+            </div>
+        </div>
+        
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Debug Log</h5>
+            </div>
+            <div class="card-body">
+                <div id="debugLog" style="max-height: 300px; overflow-y: auto;"></div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Environment Information</h5>
+            </div>
+            <div class="card-body">
+                <table class="table">
+                    <tbody>
+                        <tr>
+                            <th>URL:</th>
+                            <td id="envUrl"></td>
+                        </tr>
+                        <tr>
+                            <th>Hostname:</th>
+                            <td id="envHostname"></td>
+                        </tr>
+                        <tr>
+                            <th>Path:</th>
+                            <td id="envPath"></td>
+                        </tr>
+                        <tr>
+                            <th>GitHub Pages:</th>
+                            <td id="envGithubPages"></td>
+                        </tr>
+                        <tr>
+                            <th>Base Path:</th>
+                            <td id="envBasePath"></td>
+                        </tr>
+                        <tr>
+                            <th>User Agent:</th>
+                            <td id="envUserAgent"></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <div class="mt-4">
+            <a href="index.html" class="btn btn-secondary">Back to Main Page</a>
+        </div>
+    </div>
+    
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Debug Script -->
+    <script>
+        document.getElementById('reloadBtn').addEventListener('click', function() {
+            location.reload();
+        });
+        
+        // Environment information
+        document.getElementById('envUrl').textContent = window.location.href;
+        document.getElementById('envHostname').textContent = window.location.hostname;
+        document.getElementById('envPath').textContent = window.location.pathname;
+        document.getElementById('envGithubPages').textContent = window.location.hostname.includes('github.io') ? 'Yes' : 'No';
+        document.getElementById('envUserAgent').textContent = navigator.userAgent;
+        
+        // Calculate base path
+        let basePath = './';
+        if (window.location.hostname.includes('github.io')) {
+            const pathParts = window.location.pathname.split('/');
+            if (pathParts.length >= 2) {
+                const repoName = pathParts[1];
+                basePath = `/${repoName}/`;
+            }
+        }
+        document.getElementById('envBasePath').textContent = basePath;
+        
+        // Debug logging
+        function logMessage(message, type = 'info') {
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry ${type}`;
+            logEntry.textContent = message;
+            document.getElementById('debugLog').appendChild(logEntry);
+        }
+        
+        // Required scripts and objects
+        const requiredScripts = [
+            { name: 'scoring.js', object: 'pavementScoring' },
+            { name: 'recommendations.js', object: 'pavementRecommendations' },
+            { name: 'training.js', object: 'pavementTrainingSystem' },
+            { name: 'main.js', object: '' },
+            { name: 'probability_calculator.js', object: 'probabilityCalculator' },
+            { name: 'probability_display.js', object: 'probabilityDisplay' },
+            { name: 'conpave.js', object: '' }
+        ];
+        
+        // Check script status
+        function checkScriptStatus() {
+            const statusDiv = document.getElementById('scriptStatus');
+            statusDiv.innerHTML = '';
+            
+            const table = document.createElement('table');
+            table.className = 'table table-striped';
+            
+            const thead = document.createElement('thead');
+            thead.innerHTML = '<tr><th>Script</th><th>Status</th><th>Object Available</th></tr>';
+            table.appendChild(thead);
+            
+            const tbody = document.createElement('tbody');
+            
+            let allLoaded = true;
+            
+            requiredScripts.forEach(script => {
+                const row = document.createElement('tr');
+                
+                // Script name
+                const nameCell = document.createElement('td');
+                nameCell.textContent = script.name;
+                row.appendChild(nameCell);
+                
+                // Load status
+                const loadCell = document.createElement('td');
+                const scriptLoaded = Array.from(document.scripts)
+                    .some(s => s.src.includes(script.name));
+                loadCell.innerHTML = scriptLoaded ? 
+                    '<span class="text-success">Loaded</span>' : 
+                    '<span class="text-danger">Not Loaded</span>';
+                row.appendChild(loadCell);
+                
+                // Object status
+                const objectCell = document.createElement('td');
+                if (script.object) {
+                    const objectAvailable = window[script.object] !== undefined;
+                    objectCell.innerHTML = objectAvailable ? 
+                        '<span class="text-success">Available</span>' : 
+                        '<span class="text-danger">Not Available</span>';
+                    
+                    if (!objectAvailable) {
+                        allLoaded = false;
+                        logMessage(`Object ${script.object} is not available`, 'error');
+                    }
+                } else {
+                    objectCell.textContent = 'N/A';
+                }
+                row.appendChild(objectCell);
+                
+                tbody.appendChild(row);
+                
+                if (!scriptLoaded) {
+                    allLoaded = false;
+                    logMessage(`Script ${script.name} not loaded`, 'error');
+                }
+            });
+            
+            table.appendChild(tbody);
+            statusDiv.appendChild(table);
+            
+            if (allLoaded) {
+                logMessage('All scripts loaded successfully!', 'success');
+                
+                // Add a fix button for GitHub Pages
+                if (window.location.hostname.includes('github.io')) {
+                    const fixButton = document.createElement('button');
+                    fixButton.className = 'btn btn-success mt-3';
+                    fixButton.textContent = 'Try Main Page Now';
+                    fixButton.addEventListener('click', function() {
+                        window.location.href = 'index.html';
+                    });
+                    statusDiv.appendChild(fixButton);
+                }
+            } else {
+                logMessage('Some scripts failed to load', 'error');
+                
+                // Add helper buttons
+                const fixButtonsDiv = document.createElement('div');
+                fixButtonsDiv.className = 'mt-3';
+                
+                const loadButton = document.createElement('button');
+                loadButton.className = 'btn btn-warning me-2';
+                loadButton.textContent = 'Try to Fix Scripts';
+                loadButton.addEventListener('click', function() {
+                    loadMissingScripts();
+                });
+                fixButtonsDiv.appendChild(loadButton);
+                
+                statusDiv.appendChild(fixButtonsDiv);
+            }
+        }
+        
+        // Load missing scripts
+        function loadMissingScripts() {
+            logMessage('Attempting to load missing scripts...', 'info');
+            
+            requiredScripts.forEach(script => {
+                if (!Array.from(document.scripts).some(s => s.src.includes(script.name))) {
+                    const scriptElement = document.createElement('script');
+                    scriptElement.src = `${basePath}assets/js/${script.name}?fix=${Date.now()}`;
+                    document.body.appendChild(scriptElement);
+                    logMessage(`Loading ${script.name}...`, 'info');
+                }
+            });
+            
+            // Check status again after scripts have had time to load
+            setTimeout(checkScriptStatus, 2000);
+        }
+        
+        // Wait for page to fully load
+        window.addEventListener('load', function() {
+            setTimeout(checkScriptStatus, 500);
+        });
+    </script>
+</body>
+</html> 
